@@ -1056,7 +1056,22 @@ async function uploadMedia(token, file) {
   if (initRes.status === 429) throw new Error('429 Rate limit exceeded');
   if (!initRes.ok) throw new Error(`Media init failed: ${initRes.status}`);
   const {data} = await initRes.json();
-  const uploadRes = await fetch(data.uploadUrl,{method:'PUT',headers:{'Content-Type':file.type,'Content-Length':file.size},body:file});
+  // Convert file to base64 so it can be sent through our proxy (S3 doesn't allow direct browser PUT)
+  const base64Data = await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+  const uploadRes = await fetch('/api/hootsuite', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Target-Url': data.uploadUrl,
+      'X-Hootsuite-Method': 'PUT'
+    },
+    body: JSON.stringify({ data: base64Data, mimeType: file.type })
+  });
   if (!uploadRes.ok) throw new Error(`Media upload failed: ${uploadRes.status}`);
   for (let i=0;i<15;i++) {
     await new Promise(r=>setTimeout(r,2000));
