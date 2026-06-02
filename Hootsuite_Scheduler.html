@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Community Post Scheduler</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #f4f2ee; --surface: #fff; --surface2: #f9f8f5;
+  --border: #e2dfd8; --border2: #ccc9c0;
+  --text: #1c1a16; --muted: #7a776e;
+  --accent: #2b5f3e; --accent-light: #e8f2ec; --accent-mid: #4a9e6b;
+  --warn: #b85c1a; --warn-light: #fdf0e8;
+  --danger: #a32d2d; --danger-light: #fdf0f0;
+  --info: #1a4a7a; --info-light: #e8f0fa;
+  --purple: #6b3fa0; --purple-light: #f3eefa;
+  --mono: 'DM Mono', monospace; --sans: 'DM Sans', sans-serif;
+  --radius: 10px; --radius-sm: 6px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.6;}
+.app{display:grid;grid-template-columns:290px 1fr;min-height:100vh;}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:20px 18px;display:flex;flex-direction:column;gap:18px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.main{padding:28px 32px;overflow-x:auto;}
+.logo{display:flex;align-items:center;gap:10px;padding-bottom:18px;border-bottom:1px solid var(--border);}
+.logo-mark{width:32px;height:32px;background:var(--accent);border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.logo-name{font-size:13px;font-weight:500;color:var(--text);}
+.logo-sub{font-size:11px;color:var(--muted);font-family:var(--mono);}
+.section{display:flex;flex-direction:column;gap:7px;}
+.section-label{font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}
+.seg{display:grid;border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;}
+.seg-2{grid-template-columns:1fr 1fr;}
+.seg-3{grid-template-columns:1fr 1fr 1fr;}
+.seg-btn{padding:6px 8px;font-size:11px;font-weight:500;font-family:var(--sans);border:none;cursor:pointer;transition:all .15s;background:transparent;color:var(--muted);}
+.seg-btn.active{background:var(--accent);color:#fff;}
+.seg-btn:hover:not(.active){background:var(--surface2);}
+.upload-zone{border:1px dashed var(--border2);border-radius:var(--radius-sm);padding:10px;cursor:pointer;transition:all .15s;background:var(--surface2);display:flex;align-items:center;gap:8px;}
+.upload-zone:hover{border-color:var(--accent-mid);background:var(--accent-light);}
+.upload-zone.has-file{border-style:solid;border-color:var(--accent-mid);background:var(--accent-light);}
+.upload-zone.has-file .uz-icon{background:var(--accent);}
+.uz-icon{width:26px;height:26px;border-radius:var(--radius-sm);background:var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .15s;}
+.uz-label{font-size:12px;font-weight:500;color:var(--text);}
+.uz-hint{font-size:10px;color:var(--muted);}
+.uz-ok{font-size:10px;color:var(--accent);}
+input[type=file]{display:none;}
+.folder-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+select,input[type=text]{width:100%;padding:6px 9px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;font-family:var(--sans);background:var(--surface);color:var(--text);outline:none;transition:border-color .15s;}
+select:focus,input[type=text]:focus{border-color:var(--accent-mid);}
+select:disabled{opacity:.5;cursor:not-allowed;}
+select[multiple]{height:auto;min-height:80px;max-height:120px;}
+select[multiple] option{padding:4px 6px;border-radius:3px;}
+select[multiple] option:checked{background:var(--accent);color:#fff;}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;}
+.toggle-label{font-size:12px;color:var(--text);}
+.toggle{position:relative;width:32px;height:18px;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;inset:0;background:var(--border2);border-radius:99px;cursor:pointer;transition:background .2s;}
+.toggle-slider::before{content:'';position:absolute;width:12px;height:12px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s;}
+.toggle input:checked+.toggle-slider{background:var(--accent);}
+.toggle input:checked+.toggle-slider::before{transform:translateX(14px);}
+.btn{width:100%;padding:9px 14px;font-size:13px;font-weight:500;font-family:var(--sans);border-radius:var(--radius-sm);cursor:pointer;transition:all .15s;border:1px solid transparent;}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-primary:hover:not(:disabled){background:#234f33;}
+.btn-outline{background:transparent;color:var(--text);border-color:var(--border2);}
+.btn-outline:hover:not(:disabled){background:var(--surface2);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-live{background:var(--info);color:#fff;border-color:var(--info);}
+.btn-live:hover:not(:disabled){background:#123260;}
+.main-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
+.main-title{font-size:20px;font-weight:500;}
+.main-sub{font-size:13px;color:var(--muted);margin-top:2px;}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:500;font-family:var(--mono);}
+.badge-test{background:var(--warn-light);color:var(--warn);border:1px solid #f0c8a0;}
+.badge-live{background:var(--info-light);color:var(--info);border:1px solid #a8c4e8;}
+.badge-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;}
+.stat-val{font-size:22px;font-weight:500;font-family:var(--mono);color:var(--text);}
+.stat-label{font-size:10px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.06em;}
+.stat-card.ok .stat-val{color:var(--accent);}
+.stat-card.warn .stat-val{color:var(--warn);}
+.stat-card.info .stat-val{color:var(--info);}
+.filter-bar{display:flex;align-items:center;gap:10px;margin-bottom:14px;}
+.filter-bar input{flex:1;}
+.filter-bar select{width:160px;}
+.table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:16px;}
+table{width:100%;border-collapse:collapse;}
+thead{background:var(--surface2);}
+th{padding:9px 12px;text-align:left;font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;}
+td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:top;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:var(--surface2);}
+.thumb{width:44px;height:44px;border-radius:var(--radius-sm);border:1px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;position:relative;}
+.thumb img{width:100%;height:100%;object-fit:cover;}
+.thumb-none{width:44px;height:44px;border-radius:var(--radius-sm);border:1px dashed var(--border2);background:var(--surface2);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.caption-cell{max-width:340px;}
+.caption-text{font-size:12px;line-height:1.6;white-space:pre-wrap;word-break:break-word;}
+.img-src{display:inline-block;padding:2px 6px;border-radius:99px;font-size:10px;font-weight:500;font-family:var(--mono);}
+.img-src.community{background:var(--accent-light);color:var(--accent);}
+.img-src.stock{background:var(--info-light);color:var(--info);}
+.img-src.none{background:var(--danger-light);color:var(--danger);}
+.img-src.manual{background:var(--purple-light);color:var(--purple);border:1px solid #d4b8f0;}
+.row-status{width:8px;height:8px;border-radius:50%;display:inline-block;}
+.row-status.ok{background:var(--accent-mid);}
+.row-status.warn{background:#e0a040;}
+.row-status.err{background:var(--danger);}
+.row-status.sending{background:var(--info);animation:pulse 1s infinite;}
+.row-status.sent{background:var(--accent-mid);}
+.row-status.skipped{background:var(--warn);}
+.mono{font-family:var(--mono);font-size:12px;}
+/* Collapsible community sections */
+.comm-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;}
+.comm-header{display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;background:var(--surface2);border-bottom:1px solid var(--border);user-select:none;}
+.comm-header:hover{background:#f0efe9;}
+.comm-chevron{transition:transform .2s;flex-shrink:0;}
+.comm-chevron.open{transform:rotate(90deg);}
+.comm-name{font-size:13px;font-weight:500;flex:1;}
+.comm-meta{font-size:11px;color:var(--muted);font-family:var(--mono);}
+.comm-status-badge{font-size:10px;font-weight:500;padding:2px 8px;border-radius:99px;font-family:var(--mono);}
+.csb-pending{background:var(--surface);border:1px solid var(--border2);color:var(--muted);}
+.csb-running{background:var(--info-light);color:var(--info);border:1px solid #a8c4e8;}
+.csb-done{background:var(--accent-light);color:var(--accent);border:1px solid #b0d8be;}
+.csb-failed{background:var(--danger-light);color:var(--danger);border:1px solid #f0b8b8;}
+.csb-skipped{background:var(--warn-light);color:var(--warn);border:1px solid #f0c8a0;}
+.comm-body{display:none;}
+.comm-body.open{display:block;}
+/* Batch image upload area */
+.batch-img-list{display:flex;flex-direction:column;gap:4px;max-height:150px;overflow-y:auto;}
+.batch-img-row{display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:var(--surface2);border-radius:var(--radius-sm);font-size:11px;}
+.batch-img-row .comm-label{color:var(--text);font-weight:500;}
+.batch-img-row .img-count{color:var(--muted);font-family:var(--mono);}
+.batch-img-row .upload-small{font-size:10px;padding:2px 8px;border:0.5px solid var(--border2);border-radius:4px;background:transparent;cursor:pointer;color:var(--accent);font-family:var(--sans);}
+/* Progress */
+.progress-wrap{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;}
+.progress-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.progress-label{font-size:13px;font-weight:500;}
+.progress-pct{font-family:var(--mono);font-size:12px;color:var(--muted);}
+.progress-bar-bg{height:4px;background:var(--border);border-radius:99px;overflow:hidden;}
+.progress-bar{height:100%;background:var(--accent);border-radius:99px;transition:width .3s;width:0%;}
+.log{margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--muted);max-height:80px;overflow-y:auto;line-height:1.8;}
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;color:var(--muted);gap:10px;}
+.empty-icon{width:48px;height:48px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;}
+.empty-title{font-size:14px;font-weight:500;color:var(--text);}
+.empty-sub{font-size:12px;text-align:center;max-width:280px;}
+.banner{padding:10px 14px;border-radius:var(--radius-sm);font-size:12px;margin-bottom:14px;display:flex;gap:8px;align-items:flex-start;}
+.banner-warn{background:var(--warn-light);color:var(--warn);border:1px solid #f0c8a0;}
+.banner-ok{background:var(--accent-light);color:var(--accent);border:1px solid #b0d8be;}
+.banner-info{background:var(--info-light);color:var(--info);border:1px solid #a8c4e8;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.api-fields{display:flex;flex-direction:column;gap:6px;}
+.api-fields input{font-family:var(--mono);font-size:11px;}
+.field-label{font-size:11px;color:var(--muted);}
+.sidebar-footer{margin-top:auto;padding-top:14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);line-height:1.6;}
+.profile-opt{font-size:11px;}
+.fetch-spinner{display:inline-block;width:10px;height:10px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;margin-right:4px;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sel-count{font-size:10px;color:var(--muted);text-align:right;font-family:var(--mono);}
+.sel-count.over{color:var(--danger);}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-mark"><svg viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" fill="white" opacity=".9"/><rect x="9" y="2" width="5" height="5" rx="1" fill="white" opacity=".6"/><rect x="2" y="9" width="5" height="5" rx="1" fill="white" opacity=".6"/><rect x="9" y="9" width="5" height="5" rx="1" fill="white" opacity=".3"/></svg></div>
+    <div><div class="logo-name">Community Scheduler</div><div class="logo-sub">Hootsuite Post Tool</div></div>
+  </div>
+
+  <!-- TEST/LIVE MODE -->
+  <div class="section">
+    <div class="section-label">Mode</div>
+    <div class="seg seg-2">
+      <button class="seg-btn active" id="btn-test-mode" onclick="setMode('test')">Test</button>
+      <button class="seg-btn" id="btn-live-mode" onclick="setMode('live')">Live</button>
+    </div>
+  </div>
+
+  <!-- SINGLE/BATCH -->
+  <div class="section">
+    <div class="section-label">Batch Size</div>
+    <div class="seg seg-2">
+      <button class="seg-btn active" id="btn-single" onclick="setBatchMode('single')">Single</button>
+      <button class="seg-btn" id="btn-batch" onclick="setBatchMode('batch')">Batch (≤10)</button>
+    </div>
+  </div>
+
+  <!-- FILES -->
+  <div class="section">
+    <div class="section-label">Files</div>
+    <label class="upload-zone" for="input-csv" id="zone-csv">
+      <div class="uz-icon"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="14 2 14 8 20 8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div><div class="uz-label">Template CSV</div><div class="uz-hint" id="hint-csv">Upload .csv template</div><div class="uz-ok" id="ok-csv" style="display:none"></div></div>
+    </label>
+    <input type="file" id="input-csv" accept=".csv">
+    <label class="upload-zone" for="input-xlsx" id="zone-xlsx">
+      <div class="uz-icon"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="14 2 14 8 20 8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div><div class="uz-label">Communities Spreadsheet</div><div class="uz-hint" id="hint-xlsx">Upload .xlsx file</div><div class="uz-ok" id="ok-xlsx" style="display:none"></div></div>
+    </label>
+    <input type="file" id="input-xlsx" accept=".xlsx,.xls">
+  </div>
+
+  <!-- STOCK IMAGES (always shown) -->
+  <div class="section">
+    <div class="section-label">Stock Images</div>
+    <label class="upload-zone" for="input-stock-imgs" id="zone-stock-imgs">
+      <div class="uz-icon"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="white" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="white"/><polyline points="21 15 16 10 5 21" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></div>
+      <div><div class="uz-label">_stock folder</div><div class="uz-hint" id="hint-stock-imgs">Any .jpg/.png files</div><div class="uz-ok" id="ok-stock-imgs" style="display:none"></div></div>
+    </label>
+    <input type="file" id="input-stock-imgs" accept=".jpg,.jpeg,.png" multiple>
+  </div>
+
+  <!-- SINGLE MODE: community select + images -->
+  <div id="single-section">
+    <div class="section">
+      <div class="section-label">Community</div>
+      <select id="sel-community" disabled><option>— upload spreadsheet first —</option></select>
+    </div>
+    <div class="section">
+      <div class="section-label">Community Images</div>
+      <label class="upload-zone" for="input-community-imgs" id="zone-comm-imgs">
+        <div class="uz-icon"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="white" stroke-width="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="white"/><polyline points="21 15 16 10 5 21" stroke="white" stroke-width="2" stroke-linecap="round"/></svg></div>
+        <div><div class="uz-label">Community photos</div><div class="uz-hint" id="hint-comm-imgs">Any .jpg/.png files</div><div class="uz-ok" id="ok-comm-imgs" style="display:none"></div></div>
+      </label>
+      <input type="file" id="input-community-imgs" accept=".jpg,.jpeg,.png" multiple>
+    </div>
+  </div>
+
+  <!-- BATCH MODE: multi-select + per-community image upload -->
+  <div id="batch-section" style="display:none;">
+    <div class="section">
+      <div class="section-label">Select Communities</div>
+      <div class="sel-count" id="sel-count">0 / 10 selected</div>
+      <select id="sel-batch-communities" multiple disabled><option>— upload spreadsheet first —</option></select>
+      <div style="font-size:10px;color:var(--muted);">Hold Ctrl / Cmd to select multiple (max 10)</div>
+    </div>
+    <div class="section">
+      <div class="section-label">Community Images</div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.5;">Upload photos for each selected community. Select communities first.</div>
+      <div class="batch-img-list" id="batch-img-list"></div>
+    </div>
+  </div>
+
+  <!-- OPTIONS -->
+  <div class="section">
+    <div class="section-label">Options</div>
+    <div class="toggle-row">
+      <span class="toggle-label">CSV has header row</span>
+      <label class="toggle"><input type="checkbox" id="toggle-header"><span class="toggle-slider"></span></label>
+    </div>
+  </div>
+
+  <!-- API -->
+  <div class="section" id="api-section" style="display:none;">
+    <div class="section-label">Hootsuite API</div>
+    <div class="api-fields">
+      <!-- OAuth Credentials -->
+      <div class="field-label">Client ID</div>
+      <input type="text" id="input-client-id" placeholder="Your app Client ID..." oninput="onCredentialsInput()">
+      <div class="field-label">Client Secret</div>
+      <input type="password" id="input-client-secret" placeholder="Your app Client Secret..." oninput="onCredentialsInput()">
+      <div style="font-size:10px;color:var(--muted);line-height:1.5;">Stored in memory only — never saved or transmitted except to Hootsuite.</div>
+      <div class="divider" style="margin:8px 0;"></div>
+      <!-- Access Token -->
+      <div class="field-label">Access Token</div>
+      <input type="text" id="input-token" placeholder="Paste Bearer token..." oninput="onTokenInput()">
+      <div id="token-status" style="font-size:10px;display:none;margin-top:2px;"></div>
+      <div style="display:flex;gap:6px;margin-top:4px;">
+        <button class="btn btn-outline" id="btn-refresh-token" onclick="refreshToken()" disabled style="font-size:11px;padding:5px 8px;flex:1;">↺ Refresh Token</button>
+        <button class="btn btn-outline" id="btn-fetch-profiles" onclick="fetchProfiles()" disabled style="font-size:11px;padding:5px 8px;flex:1;">Fetch Profiles</button>
+      </div>
+      <div id="profiles-status" style="font-size:10px;color:var(--muted);display:none;margin-top:4px;"></div>
+      <!-- Profile picker -->
+      <div id="profiles-picker" style="display:none;">
+        <div class="field-label" style="margin-top:6px;">Select Profiles to Post To</div>
+        <select id="sel-profiles" multiple style="min-height:90px;max-height:130px;" onchange="onProfileSelect()"></select>
+        <div style="font-size:10px;color:var(--muted);line-height:1.5;">Hold Ctrl / Cmd to select multiple</div>
+        <div class="field-label" style="margin-top:4px;">Selected Profile IDs</div>
+        <input type="text" id="input-profiles" placeholder="Auto-filled from selection..." readonly style="font-size:10px;color:var(--muted);background:var(--surface2);">
+      </div>
+      <!-- Manual fallback -->
+      <div id="profiles-manual" style="margin-top:4px;">
+        <div class="field-label">Social Profile IDs</div>
+        <input type="text" id="input-profiles-manual" placeholder="123456, 789012, ..." oninput="onManualProfileInput()">
+        <div style="font-size:10px;color:var(--muted);line-height:1.5;">Or enter IDs manually (comma-separated)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="section">
+    <button class="btn btn-primary" id="btn-preview" disabled onclick="buildPreview()">Preview Posts</button>
+    <button class="btn btn-live" id="btn-go-live" disabled onclick="goLive()" style="display:none;margin-top:6px;">Schedule to Hootsuite</button>
+  </div>
+
+  <div class="sidebar-footer">Community photos are randomly distributed across posts. Stock photos fill remaining slots. Click any thumbnail to swap manually.<br><br>💡 To enable auto token refresh, enter your Client ID and Secret above, and paste your refresh token into the Access Token field after your first Postman login.</div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="main-header">
+    <div>
+      <div class="main-title" id="main-title">Post Preview</div>
+      <div class="main-sub" id="main-sub">Upload files and select a community to get started</div>
+    </div>
+    <div id="mode-badge" class="badge badge-test"><span class="badge-dot"></span> Test Mode</div>
+  </div>
+
+  <div id="progress-section" style="display:none;">
+    <div class="progress-wrap">
+      <div class="progress-header">
+        <span class="progress-label" id="progress-label">Scheduling posts...</span>
+        <span class="progress-pct" id="progress-pct">0%</span>
+      </div>
+      <div class="progress-bar-bg"><div class="progress-bar" id="progress-bar"></div></div>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+
+  <div id="stats-section" style="display:none;">
+    <div class="stats-bar">
+      <div class="stat-card"><div class="stat-val" id="stat-total">0</div><div class="stat-label">Total Posts</div></div>
+      <div class="stat-card ok"><div class="stat-val" id="stat-with-img">0</div><div class="stat-label">With Image</div></div>
+      <div class="stat-card warn"><div class="stat-val" id="stat-no-img">0</div><div class="stat-label">No Image</div></div>
+      <div class="stat-card info"><div class="stat-val" id="stat-stock">0</div><div class="stat-label">Stock Photos</div></div>
+    </div>
+  </div>
+
+  <div id="banner-area"></div>
+
+  <div id="filter-area" style="display:none;">
+    <div class="filter-bar">
+      <input type="text" id="filter-search" placeholder="Search captions..." oninput="applyFilter()">
+      <select id="filter-comm" onchange="applyFilter()"><option value="">All communities</option></select>
+      <select id="filter-img" onchange="applyFilter()">
+        <option value="">All images</option>
+        <option value="community">Community</option>
+        <option value="stock">Stock</option>
+        <option value="manual">Manual</option>
+        <option value="none">No image</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="table-area">
+    <div class="empty">
+      <div class="empty-icon"><svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2" stroke="#7a776e" stroke-width="1.5" stroke-linecap="round"/><path d="M15 7h2a5 5 0 0 1 0 10h-2" stroke="#7a776e" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="12" x2="16" y2="12" stroke="#7a776e" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div class="empty-title">No posts loaded</div>
+      <div class="empty-sub">Upload your files and select a community to preview posts.</div>
+    </div>
+  </div>
+</main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let state = {
+  mode: 'test',
+  batchMode: 'single',
+  csvText: null,
+  communities: [],
+  stockImages: [],
+  // Single mode
+  singleCommunity: null,
+  singleCommunityImages: [],
+  // Batch mode: { communityName: [File,...] }
+  batchCommunityImages: {},
+  // Pinned images per community: { communityName: { idx: {file,dataUrl} } }
+  pinnedImages: {},
+  // Preview data: { communityName: [post,...] }
+  previewData: {},
+  allPosts: [],   // flat list for filter/stats
+  // OAuth token state
+  refreshToken: null,
+  tokenExpiry: null,
+};
+
+const $ = id => document.getElementById(id);
+
+// ── Mode Switches ──────────────────────────────────────────────────────────
+function setMode(m) {
+  state.mode = m;
+  $('btn-test-mode').classList.toggle('active', m==='test');
+  $('btn-live-mode').classList.toggle('active', m==='live');
+  $('mode-badge').className = 'badge '+(m==='test'?'badge-test':'badge-live');
+  $('mode-badge').innerHTML = `<span class="badge-dot"></span> ${m==='test'?'Test Mode':'Live Mode'}`;
+  $('api-section').style.display = m==='live' ? 'block' : 'none';
+  updateLiveBtn();
+}
+
+function setBatchMode(m) {
+  state.batchMode = m;
+  $('btn-single').classList.toggle('active', m==='single');
+  $('btn-batch').classList.toggle('active', m==='batch');
+  $('single-section').style.display = m==='single' ? 'contents' : 'none';
+  $('batch-section').style.display = m==='batch' ? 'contents' : 'none';
+  checkPreviewReady();
+  // Reset preview
+  state.previewData = {}; state.allPosts = [];
+  renderEmptyState();
+}
+
+function renderEmptyState() {
+  $('table-area').innerHTML = `<div class="empty"><div class="empty-icon"><svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2" stroke="#7a776e" stroke-width="1.5" stroke-linecap="round"/><path d="M15 7h2a5 5 0 0 1 0 10h-2" stroke="#7a776e" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="12" x2="16" y2="12" stroke="#7a776e" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="empty-title">No posts loaded</div><div class="empty-sub">Upload your files and select a community to preview posts.</div></div>`;
+  $('stats-section').style.display = 'none';
+  $('filter-area').style.display = 'none';
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function fileReady(zoneId, hintId, okId, msg) {
+  $(zoneId).classList.add('has-file');
+  $(hintId).style.display = 'none';
+  $(okId).style.display = 'block';
+  $(okId).textContent = '✓ ' + msg;
+}
+function setBanner(html, type='info') {
+  $('banner-area').innerHTML = html ? `<div class="banner banner-${type}">${html}</div>` : '';
+}
+function addLog(msg) {
+  const el = document.createElement('div'); el.textContent = '› '+msg;
+  $('log').appendChild(el); $('log').scrollTop = $('log').scrollHeight;
+}
+function setProgress(pct, label) {
+  $('progress-bar').style.width = pct+'%';
+  $('progress-pct').textContent = pct+'%';
+  if (label) $('progress-label').textContent = label;
+}
+function escapeHTML(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escapeRE(s) { return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); }
+function shuffle(arr) {
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+function formatPhone(raw) {
+  const d=String(raw).replace(/\D/g,'');
+  return d.length===10?`(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`:String(raw);
+}
+function checkPreviewReady() {
+  let ready = false;
+  if (state.batchMode === 'single') {
+    ready = !!(state.csvText && state.communities.length && state.singleCommunity);
+  } else {
+    const sel = getSelectedBatchCommunities();
+    ready = !!(state.csvText && state.communities.length && sel.length > 0 && sel.length <= 10);
+  }
+  $('btn-preview').disabled = !ready;
+}
+function updateLiveBtn() {
+  const hasPosts = state.allPosts.length > 0;
+  const profileIds = getProfileIds();
+  if (state.mode === 'live' && hasPosts) {
+    $('btn-go-live').style.display = 'block';
+    $('btn-go-live').disabled = !$('input-token').value.trim() || !profileIds;
+  } else {
+    $('btn-go-live').style.display = 'none';
+  }
+}
+
+function getProfileIds() {
+  // Prefer picker selection; fall back to manual input
+  const picker = $('input-profiles');
+  const manual = $('input-profiles-manual');
+  if (picker && picker.value.trim()) return picker.value.trim();
+  if (manual && manual.value.trim()) return manual.value.trim();
+  return '';
+}
+
+function onTokenInput() {
+  const hasToken = !!$('input-token').value.trim();
+  $('btn-fetch-profiles').disabled = !hasToken;
+  $('btn-refresh-token').disabled = !($('input-client-id').value.trim() && $('input-client-secret').value.trim() && state.refreshToken);
+  updateLiveBtn();
+}
+
+function onCredentialsInput() {
+  const hasCreds = !!($('input-client-id').value.trim() && $('input-client-secret').value.trim());
+  $('btn-refresh-token').disabled = !(hasCreds && state.refreshToken);
+}
+
+function setTokenStatus(msg, type='muted') {
+  const el = $('token-status');
+  el.style.display = msg ? 'block' : 'none';
+  el.style.color = type==='ok' ? 'var(--accent)' : type==='warn' ? 'var(--warn)' : type==='err' ? 'var(--danger)' : 'var(--muted)';
+  el.textContent = msg;
+}
+
+function checkTokenExpiry() {
+  if (!state.tokenExpiry) return;
+  const msLeft = state.tokenExpiry - Date.now();
+  if (msLeft <= 0) {
+    setTokenStatus('⚠ Token expired — click Refresh Token', 'warn');
+  } else if (msLeft < 5 * 60 * 1000) {
+    const mins = Math.ceil(msLeft / 60000);
+    setTokenStatus(`⚠ Token expires in ~${mins} min — consider refreshing`, 'warn');
+  } else {
+    const mins = Math.floor(msLeft / 60000);
+    setTokenStatus(`✓ Token valid — expires in ~${mins} min`, 'ok');
+  }
+}
+
+async function refreshToken() {
+  const clientId     = $('input-client-id').value.trim();
+  const clientSecret = $('input-client-secret').value.trim();
+  if (!clientId || !clientSecret || !state.refreshToken) {
+    setTokenStatus('Enter Client ID, Client Secret, and ensure you have a refresh token.', 'err');
+    return;
+  }
+  const btn = $('btn-refresh-token');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="fetch-spinner"></span> Refreshing...';
+  setTokenStatus('Requesting new token...', 'muted');
+  try {
+    const body = new URLSearchParams({
+      grant_type:    'refresh_token',
+      refresh_token: state.refreshToken,
+      client_id:     clientId,
+      client_secret: clientSecret,
+    });
+    const res = await fetch('https://platform.hootsuite.com/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString()
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} — check your credentials`);
+    const data = await res.json();
+    if (!data.access_token) throw new Error('No access token in response');
+    $('input-token').value = data.access_token;
+    if (data.refresh_token) state.refreshToken = data.refresh_token;
+    if (data.expires_in)    state.tokenExpiry   = Date.now() + (data.expires_in * 1000);
+    setTokenStatus(`✓ Token refreshed successfully!`, 'ok');
+    $('btn-fetch-profiles').disabled = false;
+    // Start expiry countdown
+    if (state._expiryInterval) clearInterval(state._expiryInterval);
+    state._expiryInterval = setInterval(checkTokenExpiry, 60000);
+    updateLiveBtn();
+  } catch(err) {
+    setTokenStatus(`✗ Refresh failed: ${err.message}`, 'err');
+  }
+  btn.disabled = false;
+  btn.innerHTML = '↺ Refresh Token';
+}
+
+// Call when user manually pastes a token — allow setting expiry hint
+function onManualTokenPaste(e) {
+  onTokenInput();
+  // If no expiry set yet, show a reminder
+  if (!state.tokenExpiry) {
+    setTokenStatus('Token pasted. Add Client ID & Secret to enable auto-refresh.', 'muted');
+  }
+}
+
+function onManualProfileInput() { updateLiveBtn(); }
+
+function onProfileSelect() {
+  const sel = $('sel-profiles');
+  const ids = Array.from(sel.selectedOptions).map(o => o.value).join(', ');
+  $('input-profiles').value = ids;
+  updateLiveBtn();
+}
+function getSelectedBatchCommunities() {
+  const sel = $('sel-batch-communities');
+  return Array.from(sel.selectedOptions).map(o => o.value);
+}
+function getPinnedForComm(commName) {
+  return state.pinnedImages[commName] || {};
+}
+
+// ── File Uploads ───────────────────────────────────────────────────────────
+$('input-csv').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => { state.csvText = ev.target.result; fileReady('zone-csv','hint-csv','ok-csv',file.name); checkPreviewReady(); };
+  reader.readAsText(file,'latin1');
+});
+
+$('input-xlsx').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const wb = XLSX.read(ev.target.result,{type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    state.communities = XLSX.utils.sheet_to_json(ws,{defval:''});
+    fileReady('zone-xlsx','hint-xlsx','ok-xlsx',`${file.name} (${state.communities.length} communities)`);
+    populateSelects();
+    checkPreviewReady();
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+$('input-stock-imgs').addEventListener('change', e => {
+  state.stockImages = [...e.target.files].filter(f => /\.(jpg|jpeg|png)$/i.test(f.name));
+  fileReady('zone-stock-imgs','hint-stock-imgs','ok-stock-imgs',`${state.stockImages.length} images`);
+});
+
+$('input-community-imgs').addEventListener('change', e => {
+  state.singleCommunityImages = [...e.target.files].filter(f => /\.(jpg|jpeg|png)$/i.test(f.name));
+  const n = state.singleCommunityImages.length;
+  fileReady('zone-comm-imgs','hint-comm-imgs','ok-comm-imgs',`${n} image${n!==1?'s':''}`);
+});
+
+// ── Community Selects ──────────────────────────────────────────────────────
+function populateSelects() {
+  // Single
+  const sel = $('sel-community');
+  sel.innerHTML = '<option value="">— Select a community —</option>';
+  // Batch
+  const bsel = $('sel-batch-communities');
+  bsel.innerHTML = '';
+  state.communities.forEach(row => {
+    const name = row['Community'];
+    const opt1 = document.createElement('option'); opt1.value=name; opt1.textContent=name; sel.appendChild(opt1);
+    const opt2 = document.createElement('option'); opt2.value=name; opt2.textContent=name; bsel.appendChild(opt2);
+  });
+  sel.disabled = false; bsel.disabled = false;
+  // Populate filter-comm
+  const fc = $('filter-comm'); fc.innerHTML = '<option value="">All communities</option>';
+  state.communities.forEach(row => {
+    const o = document.createElement('option'); o.value=row['Community']; o.textContent=row['Community']; fc.appendChild(o);
+  });
+}
+
+$('sel-community').addEventListener('change', e => {
+  state.singleCommunity = e.target.value || null;
+  checkPreviewReady();
+});
+
+$('sel-batch-communities').addEventListener('change', () => {
+  const sel = getSelectedBatchCommunities();
+  const count = $('sel-count');
+  count.textContent = `${sel.length} / 10 selected`;
+  count.className = 'sel-count' + (sel.length > 10 ? ' over' : '');
+  renderBatchImgList(sel);
+  checkPreviewReady();
+});
+
+$('input-token').addEventListener('input', onTokenInput);
+
+// ── Batch Image Upload List ────────────────────────────────────────────────
+function renderBatchImgList(communities) {
+  const list = $('batch-img-list');
+  list.innerHTML = '';
+  communities.forEach(name => {
+    const imgs = state.batchCommunityImages[name] || [];
+    const row = document.createElement('div'); row.className = 'batch-img-row';
+    row.innerHTML = `<span class="comm-label">${escapeHTML(name)}</span><span class="img-count" id="bic-${btoa(name).replace(/=/g,'')}">${imgs.length} img${imgs.length!==1?'s':''}</span><button class="upload-small" onclick="batchUploadFor('${escapeHTML(name)}')">Upload</button>`;
+    list.appendChild(row);
+  });
+}
+
+function batchUploadFor(commName) {
+  const input = document.createElement('input');
+  input.type='file'; input.accept='.jpg,.jpeg,.png'; input.multiple=true;
+  input.onchange = e => {
+    const files = [...e.target.files].filter(f => /\.(jpg|jpeg|png)$/i.test(f.name));
+    state.batchCommunityImages[commName] = files;
+    // Update count label
+    const key = btoa(commName).replace(/=/g,'');
+    const el = document.getElementById('bic-'+key);
+    if (el) el.textContent = `${files.length} img${files.length!==1?'s':''}`;
+  };
+  input.click();
+}
+
+// ── CSV Parsing ────────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const rows=[]; const lines=text.split('\n');
+  const start = $('toggle-header').checked ? 1 : 0;
+  for (let i=start;i<lines.length;i++) {
+    const line=lines[i].trim(); if (!line) continue;
+    const cols=[]; let cur='',inQ=false;
+    for (let c=0;c<line.length;c++) {
+      if (line[c]==='"'){inQ=!inQ;continue;}
+      if (line[c]===','&&!inQ){cols.push(cur);cur='';continue;}
+      cur+=line[c];
+    }
+    cols.push(cur);
+    if (cols.length>=2) rows.push(cols);
+  }
+  return rows;
+}
+
+// ── Build Posts for One Community ─────────────────────────────────────────
+function buildPostsForCommunity(commName, communityImages) {
+  const comm = state.communities.find(r => r['Community']===commName);
+  if (!comm) return [];
+  const origPhone = (state.csvText.match(/\(\d{3}\)\s?\d{3}-\d{4}/)||[''])[0];
+  const origUrl   = (state.csvText.match(/https?:\/\/[^\s,"]+/)||[''])[0];
+  const newPhone  = formatPhone(comm['Phone Number']||'');
+  const newUrl    = String(comm['URL']||'').trim();
+  const rawRows   = parseCSV(state.csvText);
+  const pinned    = getPinnedForComm(commName);
+
+  const stockPool = shuffle([...state.stockImages]);
+  const commPool  = shuffle([...communityImages]);
+  const freeSlots = rawRows.map((_,i)=>String(i+1)).filter(idx=>!pinned[idx]);
+  const commSlotCount = Math.min(commPool.length, freeSlots.length);
+  const commSlots = new Set(shuffle([...freeSlots]).slice(0, commSlotCount));
+  let commIdx=0, stockIdx=0;
+
+  return rawRows.map((cols,i) => {
+    let caption=(cols[1]||'').trim(), url=(cols[2]||'').trim();
+    if (origPhone) caption=caption.replace(new RegExp(escapeRE(origPhone),'g'),newPhone);
+    if (origUrl)   { caption=caption.replace(new RegExp(escapeRE(origUrl),'g'),newUrl); url=url.replace(new RegExp(escapeRE(origUrl),'g'),newUrl); }
+    const idx=String(i+1);
+    if (pinned[idx]) return {commName,date:(cols[0]||'').trim(),caption,url,imgFile:pinned[idx].file,imgDataUrl:pinned[idx].dataUrl,imgSrc:'manual',pinned:true,idx,status:'ready'};
+    let imgFile=null,imgSrc='none';
+    if (commSlots.has(idx)&&commPool.length>0){imgFile=commPool[commIdx%commPool.length];imgSrc='community';commIdx++;}
+    else if (stockPool.length>0){imgFile=stockPool[stockIdx%stockPool.length];imgSrc='stock';stockIdx++;}
+    return {commName,date:(cols[0]||'').trim(),caption,url,imgFile,imgSrc,pinned:false,idx,status:'ready'};
+  });
+}
+
+// ── Build Preview ──────────────────────────────────────────────────────────
+function buildPreview() {
+  setBanner('');
+  state.previewData = {};
+  state.allPosts = [];
+
+  if (state.batchMode === 'single') {
+    const posts = buildPostsForCommunity(state.singleCommunity, state.singleCommunityImages);
+    state.previewData[state.singleCommunity] = posts;
+    state.allPosts = posts;
+    $('main-title').textContent = state.singleCommunity;
+    $('main-sub').textContent = `${posts.length} posts`;
+  } else {
+    const selected = getSelectedBatchCommunities();
+    if (selected.length > 10) { setBanner('⚠ Please select 10 or fewer communities for batch mode.','warn'); return; }
+    selected.forEach(name => {
+      const imgs = state.batchCommunityImages[name] || [];
+      const posts = buildPostsForCommunity(name, imgs);
+      state.previewData[name] = posts;
+      state.allPosts = state.allPosts.concat(posts);
+    });
+    $('main-title').textContent = `Batch Preview`;
+    $('main-sub').textContent = `${selected.length} communities · ${state.allPosts.length} total posts`;
+  }
+
+  updateStats();
+  renderTable();
+  $('stats-section').style.display = 'block';
+  $('filter-area').style.display = 'block';
+  updateLiveBtn();
+
+  const noImg = state.allPosts.filter(p=>p.imgSrc==='none').length;
+  if (noImg>0) setBanner(`⚠ ${noImg} post${noImg>1?'s':''} have no image and will post as text only.`,'warn');
+}
+
+// ── Render Table ───────────────────────────────────────────────────────────
+let filteredPosts = [];
+
+function applyFilter() {
+  const search = ($('filter-search').value||'').toLowerCase();
+  const imgF   = $('filter-img').value;
+  const commF  = $('filter-comm').value;
+  filteredPosts = state.allPosts.filter(p => {
+    if (search && !p.caption.toLowerCase().includes(search)) return false;
+    if (imgF && p.imgSrc!==imgF) return false;
+    if (commF && p.commName!==commF) return false;
+    return true;
+  });
+  renderTable();
+}
+
+function renderTable() {
+  filteredPosts = state.allPosts;
+  if (state.batchMode==='batch') {
+    renderCollapsible();
+  } else {
+    renderFlatTable(state.allPosts, $('table-area'), state.singleCommunity);
+  }
+}
+
+function renderCollapsible() {
+  const area = $('table-area');
+  const search = ($('filter-search').value||'').toLowerCase();
+  const imgF   = $('filter-img').value;
+  const commF  = $('filter-comm').value;
+
+  const communities = Object.keys(state.previewData);
+  if (!communities.length) { area.innerHTML=''; return; }
+
+  area.innerHTML = '';
+  communities.forEach(name => {
+    let posts = state.previewData[name];
+    if (search) posts = posts.filter(p=>p.caption.toLowerCase().includes(search));
+    if (imgF)   posts = posts.filter(p=>p.imgSrc===imgF);
+    if (commF && commF!==name) return;
+
+    const withImg = posts.filter(p=>p.imgSrc!=='none').length;
+    const noImg   = posts.filter(p=>p.imgSrc==='none').length;
+    const status  = state.previewData[name][0]?.status || 'ready';
+    const csb = getCommunityBadge(name);
+
+    const section = document.createElement('div');
+    section.className = 'comm-section';
+    section.id = 'cs-'+sanitizeId(name);
+
+    section.innerHTML = `
+      <div class="comm-header" onclick="toggleSection('${sanitizeId(name)}')">
+        <svg class="comm-chevron" id="chev-${sanitizeId(name)}" width="14" height="14" fill="none" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span class="comm-name">${escapeHTML(name)}</span>
+        <span class="comm-meta">${posts.length} posts · ${withImg} with img${noImg>0?' · <span style="color:var(--danger)">'+noImg+' missing</span>':''}</span>
+        <span class="comm-status-badge ${csb.cls}" id="csb-${sanitizeId(name)}">${csb.label}</span>
+      </div>
+      <div class="comm-body open" id="cb-${sanitizeId(name)}"></div>`;
+    area.appendChild(section);
+
+    renderFlatTable(state.previewData[name], section.querySelector(`#cb-${sanitizeId(name)}`), name, true);
+  });
+}
+
+function getCommunityBadge(name) {
+  const posts = state.previewData[name] || [];
+  if (!posts.length) return {cls:'csb-pending',label:'Pending'};
+  const statuses = posts.map(p=>p.status);
+  if (statuses.every(s=>s==='sent')) return {cls:'csb-done',label:'Done'};
+  if (statuses.some(s=>s==='sending')) return {cls:'csb-running',label:'Scheduling...'};
+  if (statuses.every(s=>s==='error')) return {cls:'csb-failed',label:'Failed'};
+  if (statuses.some(s=>s==='error')) return {cls:'csb-failed',label:'Partial fail'};
+  return {cls:'csb-pending',label:'Ready'};
+}
+
+function toggleSection(id) {
+  const body = $('cb-'+id);
+  const chev = $('chev-'+id);
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  chev.classList.toggle('open', !isOpen);
+}
+
+function sanitizeId(name) { return name.replace(/[^a-zA-Z0-9]/g,'_'); }
+
+function renderFlatTable(posts, container, commName, noBorder=false) {
+  if (!posts.length) { container.innerHTML='<div style="padding:20px;text-align:center;font-size:12px;color:var(--muted);">No posts match filters.</div>'; return; }
+  let html = `<div class="${noBorder?'':'table-wrap'}"><table>
+    <thead><tr><th>#</th><th>Date / Time</th><th>Image</th><th>Source</th><th>Caption</th><th>URL</th><th>Actions</th></tr></thead><tbody>`;
+  posts.forEach(p => {
+    const srcLabel = {community:'Community',stock:'Stock',manual:'Manual',none:'None'}[p.imgSrc]||'None';
+    const pinIcon = p.pinned ? `<span style="position:absolute;top:2px;right:2px;background:var(--purple);border-radius:99px;width:14px;height:14px;display:flex;align-items:center;justify-content:center;" title="Manually pinned"><svg width="7" height="7" viewBox="0 0 10 10" fill="white"><path d="M6.5 1L5 4H2l2.5 2-.8 3L5 7.2 7.3 9l-.8-3L9 4H6z"/></svg></span>` : '';
+    const imgHtml = p.imgFile
+      ? `<div class="thumb" onclick="swapImage('${p.commName}','${p.idx}')" style="cursor:pointer;" title="Click to change"><img id="img-${sanitizeId(p.commName)}-${p.idx}" alt=""/>${pinIcon}</div>`
+      : `<div class="thumb-none" onclick="swapImage('${p.commName}','${p.idx}')" style="cursor:pointer;" title="Click to add image"><svg width="13" height="13" fill="none" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" stroke="#ccc9c0" stroke-width="1.5"/><circle cx="8.5" cy="8.5" r="1.5" fill="#ccc9c0"/><polyline points="21 15 16 10 5 21" stroke="#ccc9c0" stroke-width="1.5"/></svg></div>`;
+    const urlShort = p.url ? `<span class="mono" style="color:var(--muted);font-size:10px;word-break:break-all;">${p.url}</span>` : '—';
+    const swapBtn = `<button onclick="swapImage('${p.commName}','${p.idx}')" style="font-size:10px;padding:2px 6px;border:0.5px solid var(--border2);border-radius:4px;background:transparent;cursor:pointer;color:var(--muted);font-family:var(--sans);">↺ Swap</button>`;
+    const clearBtn = p.pinned ? ` <button onclick="clearPin('${p.commName}','${p.idx}')" style="font-size:10px;padding:2px 6px;border:0.5px solid var(--border2);border-radius:4px;background:transparent;cursor:pointer;color:var(--danger);font-family:var(--sans);">✕</button>` : '';
+    const statusDot = `<span class="row-status ok" id="rs-${sanitizeId(p.commName)}-${p.idx}"></span> `;
+    html += `<tr>
+      <td class="mono" style="color:var(--muted);">${p.idx}</td>
+      <td class="mono" style="white-space:nowrap;font-size:11px;">${p.date}</td>
+      <td>${imgHtml}</td>
+      <td><span class="img-src ${p.imgSrc}">${srcLabel}</span></td>
+      <td class="caption-cell"><div class="caption-text">${escapeHTML(p.caption)}</div></td>
+      <td>${urlShort}</td>
+      <td style="white-space:nowrap;">${statusDot}${swapBtn}${clearBtn}</td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+  container.innerHTML = html;
+  // Load thumbnails
+  posts.forEach(p => {
+    if (!p.imgFile) return;
+    const imgEl = document.getElementById(`img-${sanitizeId(p.commName)}-${p.idx}`);
+    if (!imgEl) return;
+    if (p.imgDataUrl) { imgEl.src=p.imgDataUrl; return; }
+    const reader = new FileReader();
+    reader.onload = ev => { p.imgDataUrl=ev.target.result; if(imgEl) imgEl.src=ev.target.result; };
+    reader.readAsDataURL(p.imgFile);
+  });
+}
+
+// ── Stats ──────────────────────────────────────────────────────────────────
+function updateStats() {
+  const posts = state.allPosts;
+  $('stat-total').textContent  = posts.length;
+  $('stat-with-img').textContent = posts.filter(p=>p.imgSrc!=='none').length;
+  $('stat-no-img').textContent = posts.filter(p=>p.imgSrc==='none').length;
+  $('stat-stock').textContent  = posts.filter(p=>p.imgSrc==='stock').length;
+}
+
+// ── Manual Image Swap ──────────────────────────────────────────────────────
+function swapImage(commName, idx) {
+  const input = document.createElement('input');
+  input.type='file'; input.accept='.jpg,.jpeg,.png';
+  input.onchange = e => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const dataUrl = ev.target.result;
+      if (!state.pinnedImages[commName]) state.pinnedImages[commName]={};
+      state.pinnedImages[commName][idx] = {file, dataUrl};
+      // Update post in state
+      const post = (state.previewData[commName]||[]).find(p=>p.idx===idx);
+      if (post) { post.imgFile=file; post.imgDataUrl=dataUrl; post.imgSrc='manual'; post.pinned=true; }
+      const ap = state.allPosts.find(p=>p.commName===commName&&p.idx===idx);
+      if (ap)   { ap.imgFile=file; ap.imgDataUrl=dataUrl; ap.imgSrc='manual'; ap.pinned=true; }
+      updateStats();
+      renderTable();
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+
+function clearPin(commName, idx) {
+  if (state.pinnedImages[commName]) delete state.pinnedImages[commName][idx];
+  buildPreview();
+}
+
+// ── Go Live ────────────────────────────────────────────────────────────────
+async function goLive() {
+  const token    = $('input-token').value.trim();
+  const profileStr = getProfileIds();
+  const profiles = profileStr.split(',').map(s=>s.trim()).filter(Boolean);
+  if (!token||!profiles.length) { setBanner('Please enter your Hootsuite access token and select at least one social profile.','warn'); return; }
+
+  $('btn-go-live').disabled=true; $('btn-preview').disabled=true;
+  $('progress-section').style.display='block'; $('log').innerHTML='';
+  setProgress(0,'Starting...'); setBanner('');
+
+  const communities = Object.keys(state.previewData);
+  let totalSuccess=0, totalFailed=0, skippedComms=[];
+  const totalPosts = state.allPosts.length;
+  let processedPosts = 0;
+
+  for (const commName of communities) {
+    const posts = state.previewData[commName];
+    const sid = sanitizeId(commName);
+    const csb = $('csb-'+sid);
+    if (csb) { csb.className='comm-status-badge csb-running'; csb.textContent='Scheduling...'; }
+    // Auto-expand
+    const cb = $('cb-'+sid);
+    if (cb && !cb.classList.contains('open')) toggleSection(sid);
+
+    addLog(`── ${commName} ──`);
+    let commSuccess=0, commFailed=0;
+
+    try {
+      for (let i=0; i<posts.length; i++) {
+        const p = posts[i];
+        const dot = document.getElementById(`rs-${sid}-${p.idx}`);
+        if (dot) dot.className='row-status sending';
+        setProgress(Math.round((processedPosts/totalPosts)*95), `${commName}: post ${i+1}/${posts.length}`);
+        addLog(`  Post ${p.idx}: ${p.date}`);
+        try {
+          let mediaId=null;
+          if (p.imgFile) { addLog(`    Uploading image...`); mediaId=await apiCallWithRetry(() => uploadMedia(token,p.imgFile)); addLog(`    Image ready ✓`); }
+          await apiCallWithRetry(() => schedulePost(token,profiles,p,mediaId));
+          addLog(`    Scheduled ✓`);
+          if (dot) dot.className='row-status sent';
+          p.status='sent'; commSuccess++;
+        } catch(err) {
+          addLog(`    Failed: ${err.message}`);
+          if (dot) dot.className='row-status err';
+          p.status='error'; commFailed++;
+        }
+        processedPosts++;
+        await new Promise(r=>setTimeout(r,300));
+      }
+      totalSuccess+=commSuccess; totalFailed+=commFailed;
+      if (csb) { csb.className=commFailed>0?'comm-status-badge csb-failed':'comm-status-badge csb-done'; csb.textContent=commFailed>0?`${commFailed} failed`:'Done'; }
+    } catch(err) {
+      // Community-level failure — skip and continue
+      addLog(`  Community failed: ${err.message} — skipping`);
+      posts.forEach(p=>p.status='error');
+      skippedComms.push(commName);
+      if (csb) { csb.className='comm-status-badge csb-skipped'; csb.textContent='Skipped'; }
+      processedPosts += posts.length;
+    }
+  }
+
+  setProgress(100,'Complete!');
+  const summary = `✓ ${totalSuccess} posts scheduled${totalFailed>0?`, ${totalFailed} failed`:''}${skippedComms.length>0?` · Skipped: ${skippedComms.join(', ')}`:''}`;
+  setBanner(summary, totalFailed>0||skippedComms.length>0 ? 'warn' : 'ok');
+  $('btn-preview').disabled=false; updateLiveBtn();
+}
+
+// ── Hootsuite API ──────────────────────────────────────────────────────────
+
+// Rate limit handler — retries with exponential backoff on 429
+async function apiCallWithRetry(fn, maxRetries=4) {
+  let delay = 2000; // start with 2 seconds
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch(err) {
+      const is429 = err.message && (err.message.includes('429') || err.message.toLowerCase().includes('rate limit'));
+      if (is429 && attempt < maxRetries) {
+        addLog(`    ⚠ Rate limit hit — waiting ${delay/1000}s before retry (attempt ${attempt+1}/${maxRetries})...`);
+        await new Promise(r => setTimeout(r, delay));
+        delay = Math.min(delay * 2, 30000); // double each time, max 30s
+      } else {
+        throw err; // not a rate limit error, or out of retries
+      }
+    }
+  }
+}
+
+async function fetchProfiles() {
+  const token = $('input-token').value.trim();
+  if (!token) return;
+  const btn = $('btn-fetch-profiles');
+  const status = $('profiles-status');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="fetch-spinner"></span> Fetching...';
+  status.style.display = 'block';
+  status.style.color = 'var(--muted)';
+  status.textContent = 'Connecting to Hootsuite...';
+  try {
+    // Store refresh token hint if provided via paste
+    if (!state.tokenExpiry) setTokenStatus('Token active. Add Client ID & Secret to enable auto-refresh.', 'muted');
+    const res = await fetch('https://platform.hootsuite.com/v1/socialProfiles', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} — check your token`);
+    const data = await res.json();
+    const profiles = data.data || [];
+    if (!profiles.length) throw new Error('No social profiles found on this account');
+    // Populate picker
+    const sel = $('sel-profiles');
+    sel.innerHTML = '';
+    profiles.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      const network = p.type ? p.type.replace(/_/g,' ') : 'Unknown';
+      opt.textContent = `${p.socialNetworkUsername || p.id} (${network})`;
+      opt.title = `ID: ${p.id}`;
+      sel.appendChild(opt);
+    });
+    $('profiles-picker').style.display = 'block';
+    $('profiles-manual').style.display = 'none';
+    status.style.color = 'var(--accent)';
+    status.textContent = `✓ ${profiles.length} profile${profiles.length!==1?'s':''} found — select below`;
+    btn.innerHTML = '↺ Refresh Profiles';
+  } catch(err) {
+    status.style.color = 'var(--danger)';
+    status.textContent = `✗ ${err.message}`;
+    btn.innerHTML = 'Fetch Social Profiles';
+  }
+  btn.disabled = false;
+  updateLiveBtn();
+}
+
+async function uploadMedia(token, file) {
+  const initRes = await fetch('https://platform.hootsuite.com/v1/media',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({sizeBytes:file.size,mimeType:file.type})});
+  if (initRes.status === 429) throw new Error('429 Rate limit exceeded');
+  if (!initRes.ok) throw new Error(`Media init failed: ${initRes.status}`);
+  const {data} = await initRes.json();
+  const uploadRes = await fetch(data.uploadUrl,{method:'PUT',headers:{'Content-Type':file.type,'Content-Length':file.size},body:file});
+  if (!uploadRes.ok) throw new Error(`Media upload failed: ${uploadRes.status}`);
+  for (let i=0;i<15;i++) {
+    await new Promise(r=>setTimeout(r,2000));
+    const s = await fetch(`https://platform.hootsuite.com/v1/media/${data.id}`,{headers:{'Authorization':'Bearer '+token}});
+    const sd = await s.json();
+    if (sd.data?.state==='READY') return data.id;
+    if (sd.data?.state==='FAILED') throw new Error('Media processing failed');
+  }
+  throw new Error('Media upload timed out');
+}
+
+async function schedulePost(token, profileIds, post, mediaId) {
+  const body = {text:post.caption,socialProfileIds:profileIds,scheduledSendTime:parseScheduleTime(post.date)};
+  if (mediaId) body.media=[{id:mediaId}];
+  const res = await fetch('https://platform.hootsuite.com/v1/messages',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json;charset=utf-8'},body:JSON.stringify(body)});
+  if (res.status === 429) throw new Error('429 Rate limit exceeded');
+  if (!res.ok) { const err=await res.json().catch(()=>({})); throw new Error(err.errors?.[0]?.message||`HTTP ${res.status}`); }
+  return res.json();
+}
+
+function parseScheduleTime(dateStr) {
+  try { const d=new Date(dateStr); if(!isNaN(d)) return d.toISOString(); } catch(e){}
+  return new Date().toISOString();
+}
+</script>
+</body>
+</html>
