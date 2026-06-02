@@ -1084,7 +1084,9 @@ async function uploadMedia(token, file) {
 }
 
 async function schedulePost(token, profileIds, post, mediaId) {
-  const body = {text:post.caption,socialProfileIds:profileIds,scheduledSendTime:parseScheduleTime(post.date)};
+  // Append URL to caption if present
+  const fullText = post.url ? `${post.caption}\n\n${post.url}` : post.caption;
+  const body = {text:fullText,socialProfileIds:profileIds,scheduledSendTime:parseScheduleTime(post.date)};
   if (mediaId) body.media=[{id:mediaId}];
   const res = await fetch('/api/hootsuite',{method:'POST',headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json;charset=utf-8','X-Hootsuite-Path':'/v1/messages','X-Hootsuite-Method':'POST'},body:JSON.stringify(body)});
   if (res.status === 429) throw new Error('429 Rate limit exceeded');
