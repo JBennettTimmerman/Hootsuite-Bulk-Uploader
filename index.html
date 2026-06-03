@@ -451,6 +451,7 @@ let state = {
   mappingCommunities: [],
   mappingProfiles: [],
   mappingResults: [],
+  allFetchedProfiles: [],
 };
 
 const $ = id => document.getElementById(id);
@@ -1115,7 +1116,6 @@ async function fetchProfiles() {
   status.style.color = 'var(--muted)';
   status.textContent = 'Connecting to Hootsuite...';
   try {
-    // Store refresh token hint if provided via paste
     if (!state.tokenExpiry) setTokenStatus('Token active. Add Client ID & Secret to enable auto-refresh.', 'muted');
     const res = await fetch('/api/hootsuite', {
       headers: {
@@ -1126,12 +1126,35 @@ async function fetchProfiles() {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status} — check your token`);
     const data = await res.json();
-    const profiles = data.data || [];
-    if (!profiles.length) throw new Error('No social profiles found on this account');
+    const allProfiles = data.data || [];
+    if (!allProfiles.length) throw new Error('No social profiles found on this account');
+
+    // Filter profiles to only those matching selected communities
+    const selectedComms = state.batchMode === 'batch'
+      ? getSelectedBatchCommunities()
+      : (state.singleCommunity ? [state.singleCommunity] : []);
+
+    // Get profile IDs from spreadsheet for selected communities
+    const mappedProfileIds = new Set();
+    selectedComms.forEach(commName => {
+      const row = state.communities.find(r => r['Community'] === commName);
+      if (row && row['Social Profile ID']) {
+        String(row['Social Profile ID']).split(',').map(s=>s.trim()).filter(Boolean).forEach(id => mappedProfileIds.add(id));
+      }
+    });
+
+    // Use mapped profiles if available, otherwise show all
+    const profilesToShow = mappedProfileIds.size > 0
+      ? allProfiles.filter(p => mappedProfileIds.has(String(p.id)))
+      : allProfiles;
+
+    // Store all profiles for reference
+    state.allFetchedProfiles = allProfiles;
+
     // Populate picker
     const sel = $('sel-profiles');
     sel.innerHTML = '';
-    profiles.forEach(p => {
+    profilesToShow.forEach(p => {
       const opt = document.createElement('option');
       opt.value = p.id;
       const network = p.type ? p.type.replace(/_/g,' ') : 'Unknown';
@@ -1139,10 +1162,28 @@ async function fetchProfiles() {
       opt.title = `ID: ${p.id}`;
       sel.appendChild(opt);
     });
+
+    // Auto-select all shown profiles if they came from mapping
+    if (mappedProfileIds.size > 0) {
+      Array.from(sel.options).forEach(o => o.selected = true);
+      onProfileSelect();
+    }
+
     $('profiles-picker').style.display = 'block';
     $('profiles-manual').style.display = 'none';
+
+    const filteredMsg = mappedProfileIds.size > 0
+      ? `✓ Showing ${profilesToShow.length} profile${profilesToShow.length!==1?'s':''} for selected communities`
+      : `✓ ${allProfiles.length} profile${allProfiles.length!==1?'s':''} found — select below`;
+
     status.style.color = 'var(--accent)';
-    status.textContent = `✓ ${profiles.length} profile${profiles.length!==1?'s':''} found — select below`;
+    status.textContent = filteredMsg;
+
+    // Add toggle to show all profiles if filtered
+    if (mappedProfileIds.size > 0 && profilesToShow.length < allProfiles.length) {
+      status.innerHTML += ` <a href="#" onclick="showAllProfiles(event)" style="color:var(--info);text-decoration:underline;font-size:10px;">Show all ${allProfiles.length}</a>`;
+    }
+
     btn.innerHTML = '↺ Refresh Profiles';
   } catch(err) {
     status.style.color = 'var(--danger)';
@@ -1151,6 +1192,21 @@ async function fetchProfiles() {
   }
   btn.disabled = false;
   updateLiveBtn();
+}
+
+function showAllProfiles(e) {
+  e.preventDefault();
+  const sel = $('sel-profiles');
+  sel.innerHTML = '';
+  (state.allFetchedProfiles || []).forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    const network = p.type ? p.type.replace(/_/g,' ') : 'Unknown';
+    opt.textContent = `${p.socialNetworkUsername || p.id} (${network})`;
+    sel.appendChild(opt);
+  });
+  const status = $('profiles-status');
+  status.textContent = `Showing all ${state.allFetchedProfiles.length} profiles`;
 }
 
 async function uploadMedia(token, file) {
