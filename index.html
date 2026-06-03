@@ -158,6 +158,11 @@ tr:hover td{background:var(--surface2);}
 .profile-opt{font-size:11px;}
 .fetch-spinner{display:inline-block;width:10px;height:10px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;margin-right:4px;vertical-align:middle;}
 @keyframes spin{to{transform:rotate(360deg)}}
+.conf-high{background:var(--accent-light);color:var(--accent);padding:2px 7px;border-radius:99px;font-size:10px;font-family:var(--mono);}
+.conf-mid{background:#fff8e8;color:#8a6000;padding:2px 7px;border-radius:99px;font-size:10px;font-family:var(--mono);border:1px solid #f0d890;}
+.conf-low{background:var(--danger-light);color:var(--danger);padding:2px 7px;border-radius:99px;font-size:10px;font-family:var(--mono);}
+.conf-none{background:var(--surface2);color:var(--muted);padding:2px 7px;border-radius:99px;font-size:10px;font-family:var(--mono);}
+.map-select{width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);}
 .sel-count{font-size:10px;color:var(--muted);text-align:right;font-family:var(--mono);}
 .sel-count.over{color:var(--danger);}
 </style>
@@ -181,12 +186,13 @@ tr:hover td{background:var(--surface2);}
     </div>
   </div>
 
-  <!-- SINGLE/BATCH -->
+  <!-- MODE/BATCH -->
   <div class="section">
-    <div class="section-label">Batch Size</div>
-    <div class="seg seg-2">
-      <button class="seg-btn active" id="btn-single" onclick="setBatchMode('single')">Single</button>
-      <button class="seg-btn" id="btn-batch" onclick="setBatchMode('batch')">Batch (≤10)</button>
+    <div class="section-label">Scheduler Mode</div>
+    <div class="seg seg-3">
+      <button class="seg-btn active" id="btn-single" onclick="setAppMode('single')">Single</button>
+      <button class="seg-btn" id="btn-batch" onclick="setAppMode('batch')">Batch</button>
+      <button class="seg-btn" id="btn-mapping" onclick="setAppMode('mapping')">Map Profiles</button>
     </div>
   </div>
 
@@ -213,6 +219,29 @@ tr:hover td{background:var(--surface2);}
       <div><div class="uz-label">_stock folder</div><div class="uz-hint" id="hint-stock-imgs">Any .jpg/.png files</div><div class="uz-ok" id="ok-stock-imgs" style="display:none"></div></div>
     </label>
     <input type="file" id="input-stock-imgs" accept=".jpg,.jpeg,.png" multiple>
+  </div>
+
+  <!-- MAPPING MODE -->
+  <div id="mapping-section" style="display:none;">
+    <div class="section">
+      <div class="section-label">Communities File</div>
+      <label class="upload-zone" for="input-mapping-xlsx" id="zone-mapping-xlsx">
+        <div class="uz-icon"><svg width="12" height="12" fill="none" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="14 2 14 8 20 8" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <div><div class="uz-label">Communities Spreadsheet</div><div class="uz-hint" id="hint-mapping-xlsx">Upload .xlsx file</div><div class="uz-ok" id="ok-mapping-xlsx" style="display:none"></div></div>
+      </label>
+      <input type="file" id="input-mapping-xlsx" accept=".xlsx,.xls">
+    </div>
+    <div class="section">
+      <div class="section-label">Hootsuite Token</div>
+      <div class="api-fields">
+        <div class="field-label">Access Token</div>
+        <input type="text" id="input-mapping-token" placeholder="Bearer token..." oninput="onMappingTokenInput()">
+      </div>
+    </div>
+    <div class="section">
+      <button class="btn btn-primary" id="btn-auto-map" disabled onclick="autoMapProfiles()">Auto-Map Profiles</button>
+      <button class="btn btn-outline" id="btn-export-mapping" disabled onclick="exportMapping()" style="margin-top:6px;">Export Mapped Spreadsheet</button>
+    </div>
   </div>
 
   <!-- SINGLE MODE: community select + images -->
@@ -354,6 +383,43 @@ tr:hover td{background:var(--surface2);}
       <div class="empty-sub">Upload your files and select a community to preview posts.</div>
     </div>
   </div>
+
+  <!-- MAPPING AREA -->
+  <div id="mapping-area" style="display:none;">
+    <div class="empty" id="mapping-empty">
+      <div class="empty-icon"><svg width="20" height="20" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="#7a776e" stroke-width="1.5"/><path d="M8 12h8M12 8v8" stroke="#7a776e" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+      <div class="empty-title">Profile Mapping</div>
+      <div class="empty-sub">Upload your communities spreadsheet, enter your access token, and click Auto-Map Profiles to get started.</div>
+    </div>
+    <div id="mapping-results" style="display:none;">
+      <div class="stats-bar" id="mapping-stats" style="display:none;"></div>
+      <div id="banner-mapping"></div>
+      <div class="filter-bar">
+        <input type="text" id="filter-mapping" placeholder="Search communities..." oninput="filterMappingTable()">
+        <select id="filter-mapping-status" onchange="filterMappingTable()">
+          <option value="">All</option>
+          <option value="matched">Matched</option>
+          <option value="unmatched">Unmatched</option>
+          <option value="manual">Manually assigned</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Community</th>
+              <th>Matched Facebook Profile</th>
+              <th>Confidence</th>
+              <th>Profile ID</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="mapping-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 </main>
 </div>
 
@@ -379,6 +445,12 @@ let state = {
   // OAuth token state
   refreshToken: null,
   tokenExpiry: null,
+  // App mode
+  appMode: 'single',
+  // Mapping state
+  mappingCommunities: [],
+  mappingProfiles: [],
+  mappingResults: [],
 };
 
 const $ = id => document.getElementById(id);
@@ -394,17 +466,43 @@ function setMode(m) {
   updateLiveBtn();
 }
 
-function setBatchMode(m) {
-  state.batchMode = m;
+function setAppMode(m) {
+  state.batchMode = m === 'mapping' ? 'single' : m;
+  state.appMode = m;
   $('btn-single').classList.toggle('active', m==='single');
   $('btn-batch').classList.toggle('active', m==='batch');
+  $('btn-mapping').classList.toggle('active', m==='mapping');
+  // Sidebar sections
   $('single-section').style.display = m==='single' ? 'contents' : 'none';
   $('batch-section').style.display = m==='batch' ? 'contents' : 'none';
-  checkPreviewReady();
-  // Reset preview
-  state.previewData = {}; state.allPosts = [];
-  renderEmptyState();
+  $('mapping-section').style.display = m==='mapping' ? 'contents' : 'none';
+  // Files section — hide in mapping mode since it has its own upload
+  $('zone-csv').parentElement.style.display = m==='mapping' ? 'none' : 'flex';
+  // Stock images — hide in mapping mode
+  document.querySelector('#zone-stock-imgs').closest('.section').style.display = m==='mapping' ? 'none' : 'flex';
+  // Main area
+  $('table-area').style.display = m==='mapping' ? 'none' : 'block';
+  $('mapping-area').style.display = m==='mapping' ? 'block' : 'none';
+  $('stats-section').style.display = m==='mapping' ? 'none' : ($('stats-section').style.display);
+  $('filter-area').style.display = m==='mapping' ? 'none' : ($('filter-area').style.display);
+  $('btn-preview').style.display = m==='mapping' ? 'none' : 'block';
+  $('btn-go-live') && ($('btn-go-live').style.display = m==='mapping' ? 'none' : $('btn-go-live').style.display);
+  if (m !== 'mapping') {
+    checkPreviewReady();
+    state.previewData = {}; state.allPosts = [];
+    renderEmptyState();
+  }
+  // Update main header
+  if (m === 'mapping') {
+    $('main-title').textContent = 'Profile Mapping';
+    $('main-sub').textContent = 'Auto-match communities to their Hootsuite Facebook profiles';
+  } else {
+    $('main-title').textContent = 'Post Preview';
+    $('main-sub').textContent = 'Upload files and select a community to get started';
+  }
 }
+// Keep old name as alias for compatibility
+function setBatchMode(m) { setAppMode(m); }
 
 function renderEmptyState() {
   $('table-area').innerHTML = `<div class="empty"><div class="empty-icon"><svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2" stroke="#7a776e" stroke-width="1.5" stroke-linecap="round"/><path d="M15 7h2a5 5 0 0 1 0 10h-2" stroke="#7a776e" stroke-width="1.5" stroke-linecap="round"/><line x1="8" y1="12" x2="16" y2="12" stroke="#7a776e" stroke-width="1.5" stroke-linecap="round"/></svg></div><div class="empty-title">No posts loaded</div><div class="empty-sub">Upload your files and select a community to preview posts.</div></div>`;
@@ -951,7 +1049,11 @@ async function goLive() {
         try {
           let mediaId=null;
           if (p.imgFile) { addLog(`    Uploading image...`); mediaId=await apiCallWithRetry(() => uploadMedia(token,p.imgFile)); addLog(`    Image ready ✓`); }
-          await apiCallWithRetry(() => schedulePost(token,profiles,p,mediaId));
+          // Use community-specific profile ID if available in spreadsheet
+          const commRow = state.communities.find(r => r['Community'] === p.commName);
+          const commProfileId = commRow && commRow['Social Profile ID'] ? String(commRow['Social Profile ID']).trim() : null;
+          const postProfiles = commProfileId ? [commProfileId] : profiles;
+          await apiCallWithRetry(() => schedulePost(token,postProfiles,p,mediaId));
           addLog(`    Scheduled ✓`);
           if (dot) dot.className='row-status sent';
           p.status='sent'; commSuccess++;
@@ -1097,6 +1199,202 @@ async function schedulePost(token, profileIds, post, mediaId) {
 function parseScheduleTime(dateStr) {
   try { const d=new Date(dateStr); if(!isNaN(d)) return d.toISOString(); } catch(e){}
   return new Date().toISOString();
+}
+
+// ── Profile Mapping ────────────────────────────────────────────────────────
+$('input-mapping-xlsx').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const wb = XLSX.read(ev.target.result,{type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    state.mappingCommunities = XLSX.utils.sheet_to_json(ws,{defval:''});
+    fileReady('zone-mapping-xlsx','hint-mapping-xlsx','ok-mapping-xlsx',`${file.name} (${state.mappingCommunities.length} communities)`);
+    checkAutoMapReady();
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+function onMappingTokenInput() {
+  checkAutoMapReady();
+}
+
+function checkAutoMapReady() {
+  const ready = !!($('input-mapping-token').value.trim() && state.mappingCommunities.length);
+  $('btn-auto-map').disabled = !ready;
+}
+
+// Fuzzy match — returns 0-100 score
+function fuzzyScore(a, b) {
+  a = a.toLowerCase().replace(/[^a-z0-9\s]/g,'').trim();
+  b = b.toLowerCase().replace(/[^a-z0-9\s]/g,'').trim();
+  if (a === b) return 100;
+  if (b.includes(a) || a.includes(b)) return 90;
+  // Word overlap score
+  const aWords = new Set(a.split(/\s+/).filter(w => w.length > 2));
+  const bWords = new Set(b.split(/\s+/).filter(w => w.length > 2));
+  const intersection = [...aWords].filter(w => bWords.has(w)).length;
+  const union = new Set([...aWords, ...bWords]).size;
+  if (union === 0) return 0;
+  return Math.round((intersection / union) * 80);
+}
+
+async function autoMapProfiles() {
+  const token = $('input-mapping-token').value.trim();
+  const btn = $('btn-auto-map');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="fetch-spinner"></span> Fetching profiles...';
+  $('banner-mapping').innerHTML = '';
+
+  try {
+    // Fetch all social profiles from Hootsuite
+    const res = await fetch('/api/hootsuite', {
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'X-Hootsuite-Path': '/v1/socialProfiles',
+        'X-Hootsuite-Method': 'GET'
+      }
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    // Filter Facebook profiles only
+    state.mappingProfiles = (data.data || []).filter(p =>
+      p.type && p.type.toUpperCase().includes('FACEBOOK')
+    );
+
+    if (!state.mappingProfiles.length) throw new Error('No Facebook profiles found on this account');
+
+    // Auto-match each community to best profile
+    state.mappingResults = state.mappingCommunities.map((row, i) => {
+      const commName = row['Community'] || '';
+      let bestProfile = null, bestScore = 0;
+      state.mappingProfiles.forEach(p => {
+        const score = fuzzyScore(commName, p.socialNetworkUsername || '');
+        if (score > bestScore) { bestScore = score; bestProfile = p; }
+      });
+      return {
+        idx: i + 1,
+        community: commName,
+        matchedProfile: bestScore >= 50 ? bestProfile : null,
+        score: bestScore,
+        manualProfileId: null,
+        status: bestScore >= 80 ? 'matched' : bestScore >= 50 ? 'matched' : 'unmatched'
+      };
+    });
+
+    renderMappingTable(state.mappingResults);
+    $('mapping-empty').style.display = 'none';
+    $('mapping-results').style.display = 'block';
+
+    const matched = state.mappingResults.filter(r => r.matchedProfile).length;
+    const unmatched = state.mappingResults.length - matched;
+    renderMappingStats(matched, unmatched, state.mappingProfiles.length);
+    $('btn-export-mapping').disabled = false;
+
+    if (unmatched > 0) {
+      $('banner-mapping').innerHTML = `<div class="banner banner-warn">⚠ ${unmatched} communit${unmatched>1?'ies':'y'} could not be auto-matched. Please assign them manually using the dropdown.</div>`;
+    } else {
+      $('banner-mapping').innerHTML = `<div class="banner banner-ok">✓ All ${matched} communities matched successfully! Review below and export when ready.</div>`;
+    }
+
+  } catch(err) {
+    $('banner-mapping').innerHTML = `<div class="banner banner-warn">✗ ${err.message}</div>`;
+  }
+
+  btn.innerHTML = '↺ Re-run Auto-Map';
+  btn.disabled = false;
+}
+
+function renderMappingStats(matched, unmatched, totalProfiles) {
+  const stats = $('mapping-stats');
+  stats.style.display = 'grid';
+  stats.innerHTML = `
+    <div class="stat-card"><div class="stat-val">${state.mappingCommunities.length}</div><div class="stat-label">Communities</div></div>
+    <div class="stat-card info"><div class="stat-val">${totalProfiles}</div><div class="stat-label">FB Profiles</div></div>
+    <div class="stat-card ok"><div class="stat-val">${matched}</div><div class="stat-label">Matched</div></div>
+    <div class="stat-card warn"><div class="stat-val">${unmatched}</div><div class="stat-label">Unmatched</div></div>`;
+}
+
+function renderMappingTable(results) {
+  const tbody = $('mapping-tbody');
+  tbody.innerHTML = '';
+  results.forEach(r => {
+    const profileId = r.manualProfileId || (r.matchedProfile ? r.matchedProfile.id : '');
+    const profileName = r.manualProfileId
+      ? (state.mappingProfiles.find(p=>p.id===r.manualProfileId)?.socialNetworkUsername || r.manualProfileId)
+      : (r.matchedProfile ? r.matchedProfile.socialNetworkUsername : '—');
+    const confClass = r.score >= 80 ? 'conf-high' : r.score >= 50 ? 'conf-mid' : r.score > 0 ? 'conf-low' : 'conf-none';
+    const confLabel = r.score > 0 ? r.score+'%' : 'No match';
+    const statusLabel = r.manualProfileId ? 'Manual' : r.matchedProfile ? 'Matched' : 'Unmatched';
+    const statusColor = r.manualProfileId ? 'var(--purple)' : r.matchedProfile ? 'var(--accent)' : 'var(--danger)';
+
+    // Build profile dropdown for manual override
+    const opts = state.mappingProfiles.map(p =>
+      `<option value="${p.id}" ${p.id===profileId?'selected':''}>${escapeHTML(p.socialNetworkUsername||p.id)}</option>`
+    ).join('');
+
+    const tr = document.createElement('tr');
+    tr.dataset.community = r.community.toLowerCase();
+    tr.dataset.status = r.manualProfileId ? 'manual' : r.matchedProfile ? 'matched' : 'unmatched';
+    tr.innerHTML = `
+      <td class="mono" style="color:var(--muted);">${r.idx}</td>
+      <td style="font-weight:500;font-size:13px;">${escapeHTML(r.community)}</td>
+      <td>
+        <select class="map-select" onchange="onManualMapChange(${r.idx-1}, this.value)">
+          <option value="">— Select profile —</option>
+          ${opts}
+        </select>
+      </td>
+      <td><span class="${confClass}">${confLabel}</span></td>
+      <td class="mono" style="font-size:11px;color:var(--muted);" id="pid-${r.idx}">${profileId || '—'}</td>
+      <td style="font-size:11px;font-weight:500;color:${statusColor};" id="pstatus-${r.idx}">${statusLabel}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function onManualMapChange(idx, profileId) {
+  state.mappingResults[idx].manualProfileId = profileId || null;
+  // Update status and profile ID display
+  const r = state.mappingResults[idx];
+  const finalId = profileId || (r.matchedProfile ? r.matchedProfile.id : '');
+  const pidEl = $('pid-'+(idx+1));
+  const statusEl = $('pstatus-'+(idx+1));
+  if (pidEl) pidEl.textContent = finalId || '—';
+  if (statusEl) {
+    statusEl.textContent = profileId ? 'Manual' : r.matchedProfile ? 'Matched' : 'Unmatched';
+    statusEl.style.color = profileId ? 'var(--purple)' : r.matchedProfile ? 'var(--accent)' : 'var(--danger)';
+  }
+  // Update row dataset for filtering
+  const rows = $('mapping-tbody').querySelectorAll('tr');
+  if (rows[idx]) rows[idx].dataset.status = profileId ? 'manual' : r.matchedProfile ? 'matched' : 'unmatched';
+}
+
+function filterMappingTable() {
+  const search = ($('filter-mapping').value||'').toLowerCase();
+  const statusF = $('filter-mapping-status').value;
+  const rows = $('mapping-tbody').querySelectorAll('tr');
+  rows.forEach(row => {
+    const commMatch = !search || row.dataset.community.includes(search);
+    const statusMatch = !statusF || row.dataset.status === statusF;
+    row.style.display = commMatch && statusMatch ? '' : 'none';
+  });
+}
+
+function exportMapping() {
+  // Build updated communities data with Social Profile IDs column
+  const updatedData = state.mappingCommunities.map((row, i) => {
+    const result = state.mappingResults[i];
+    const profileId = result
+      ? (result.manualProfileId || (result.matchedProfile ? result.matchedProfile.id : ''))
+      : '';
+    return { ...row, 'Social Profile ID': profileId };
+  });
+
+  // Create workbook
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(updatedData);
+  XLSX.utils.book_append_sheet(wb, ws, 'Communities');
+  XLSX.writeFile(wb, 'Communities_Mapped.xlsx');
 }
 </script>
 </body>
