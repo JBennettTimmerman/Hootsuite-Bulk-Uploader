@@ -108,6 +108,11 @@ tr:hover td{background:var(--surface2);}
 .row-status.sending{background:var(--info);animation:pulse 1s infinite;}
 .row-status.sent{background:var(--accent-mid);}
 .row-status.skipped{background:var(--warn);}
+.btn-retry{font-size:10px;padding:2px 7px;border:0.5px solid var(--danger);border-radius:4px;background:transparent;cursor:pointer;color:var(--danger);font-family:var(--sans);margin-left:4px;}
+.btn-retry:hover{background:var(--danger-light);}
+.btn-retry-all{font-size:12px;padding:6px 14px;border:1px solid var(--danger);border-radius:var(--radius-sm);background:transparent;cursor:pointer;color:var(--danger);font-family:var(--sans);font-weight:500;}
+.btn-retry-all:hover{background:var(--danger-light);}
+.btn-retry-all:disabled{opacity:.4;cursor:not-allowed;}
 .mono{font-family:var(--mono);font-size:12px;}
 /* Collapsible community sections */
 .comm-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-bottom:12px;}
@@ -344,7 +349,10 @@ tr:hover td{background:var(--surface2);}
     <div class="progress-wrap">
       <div class="progress-header">
         <span class="progress-label" id="progress-label">Scheduling posts...</span>
-        <span class="progress-pct" id="progress-pct">0%</span>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="btn-retry-all" id="btn-retry-all" onclick="retryAllFailed()" style="display:none;" disabled>↺ Retry All Failed</button>
+          <span class="progress-pct" id="progress-pct">0%</span>
+        </div>
       </div>
       <div class="progress-bar-bg"><div class="progress-bar" id="progress-bar"></div></div>
       <div class="log" id="log"></div>
@@ -949,7 +957,8 @@ function renderFlatTable(posts, container, commName, noBorder=false) {
     const urlShort = p.url ? `<span class="mono" style="color:var(--muted);font-size:10px;word-break:break-all;">${p.url}</span>` : '—';
     const swapBtn = `<button onclick="swapImage('${p.commName}','${p.idx}')" style="font-size:10px;padding:2px 6px;border:0.5px solid var(--border2);border-radius:4px;background:transparent;cursor:pointer;color:var(--muted);font-family:var(--sans);">↺ Swap</button>`;
     const clearBtn = p.pinned ? ` <button onclick="clearPin('${p.commName}','${p.idx}')" style="font-size:10px;padding:2px 6px;border:0.5px solid var(--border2);border-radius:4px;background:transparent;cursor:pointer;color:var(--danger);font-family:var(--sans);">✕</button>` : '';
-    const statusDot = `<span class="row-status ok" id="rs-${sanitizeId(p.commName)}-${p.idx}"></span> `;
+    const retryBtn = p.status === 'error' ? ` <button class="btn-retry" id="retry-${sanitizeId(p.commName)}-${p.idx}" onclick="retrySinglePost('${p.commName}','${p.idx}')">↺ Retry</button>` : '';
+    const statusDot = `<span class="row-status ${p.status === 'error' ? 'err' : p.status === 'sent' ? 'sent' : 'ok'}" id="rs-${sanitizeId(p.commName)}-${p.idx}"></span> `;
     html += `<tr>
       <td class="mono" style="color:var(--muted);">${p.idx}</td>
       <td class="mono" style="white-space:nowrap;font-size:11px;">${p.date}</td>
@@ -957,7 +966,7 @@ function renderFlatTable(posts, container, commName, noBorder=false) {
       <td><span class="img-src ${p.imgSrc}">${srcLabel}</span></td>
       <td class="caption-cell"><div class="caption-text">${escapeHTML(p.caption)}</div></td>
       <td>${urlShort}</td>
-      <td style="white-space:nowrap;">${statusDot}${swapBtn}${clearBtn}</td>
+      <td style="white-space:nowrap;">${statusDot}${swapBtn}${clearBtn}${retryBtn}</td>
     </tr>`;
   });
   html += '</tbody></table></div>';
@@ -1081,6 +1090,16 @@ async function goLive() {
   setProgress(100,'Complete!');
   const summary = `✓ ${totalSuccess} posts scheduled${totalFailed>0?`, ${totalFailed} failed`:''}${skippedComms.length>0?` · Skipped: ${skippedComms.join(', ')}`:''}`;
   setBanner(summary, totalFailed>0||skippedComms.length>0 ? 'warn' : 'ok');
+
+  // Show Retry All Failed button if any posts failed
+  if (totalFailed > 0) {
+    $('btn-retry-all').style.display = 'block';
+    $('btn-retry-all').disabled = false;
+    $('btn-retry-all').textContent = `↺ Retry All Failed (${totalFailed})`;
+    // Re-render table to show retry buttons on failed rows
+    renderTable();
+  }
+
   $('btn-preview').disabled=false; updateLiveBtn();
 }
 
@@ -1250,6 +1269,80 @@ async function schedulePost(token, profileIds, post, mediaId) {
   if (res.status === 429) throw new Error('429 Rate limit exceeded');
   if (!res.ok) { const err=await res.json().catch(()=>({})); throw new Error(err.errors?.[0]?.message||`HTTP ${res.status}`); }
   return res.json();
+}
+
+// ── Retry Logic ───────────────────────────────────────────────────────────
+async function retrySinglePost(commName, idx) {
+  const token = $('input-token').value.trim();
+  const profileStr = getProfileIds();
+  const profiles = profileStr.split(',').map(s=>s.trim()).filter(Boolean);
+  if (!token || !profiles.length) { setBanner('Please enter your access token and profile IDs to retry.', 'warn'); return; }
+
+  const post = (state.previewData[commName] || []).find(p => p.idx === idx);
+  if (!post) return;
+
+  const sid = sanitizeId(commName);
+  const dot = document.getElementById(`rs-${sid}-${idx}`);
+  const retryBtn = document.getElementById(`retry-${sid}-${idx}`);
+
+  if (dot) dot.className = 'row-status sending';
+  if (retryBtn) { retryBtn.disabled = true; retryBtn.textContent = '...'; }
+
+  addLog(`Retrying post ${idx} for ${commName}...`);
+
+  try {
+    const commRow = state.communities.find(r => r['Community'] === commName);
+    const commProfileId = commRow && commRow['Social Profile ID'] ? String(commRow['Social Profile ID']).trim() : null;
+    const postProfiles = commProfileId ? [commProfileId] : profiles;
+
+    let mediaId = null;
+    if (post.imgFile) {
+      addLog(`  Uploading image...`);
+      mediaId = await apiCallWithRetry(() => uploadMedia(token, post.imgFile));
+      addLog(`  Image ready ✓`);
+    }
+    await apiCallWithRetry(() => schedulePost(token, postProfiles, post, mediaId));
+    post.status = 'sent';
+    if (dot) dot.className = 'row-status sent';
+    if (retryBtn) retryBtn.remove();
+    addLog(`  Post ${idx} rescheduled successfully ✓`);
+
+    // Update retry all count
+    updateRetryAllBtn();
+  } catch(err) {
+    post.status = 'error';
+    if (dot) dot.className = 'row-status err';
+    if (retryBtn) { retryBtn.disabled = false; retryBtn.textContent = '↺ Retry'; }
+    addLog(`  Retry failed: ${err.message}`);
+  }
+}
+
+async function retryAllFailed() {
+  const btn = $('btn-retry-all');
+  btn.disabled = true;
+  btn.textContent = 'Retrying...';
+
+  const failedPosts = state.allPosts.filter(p => p.status === 'error');
+  addLog(`── Retrying ${failedPosts.length} failed posts ──`);
+
+  for (const p of failedPosts) {
+    await retrySinglePost(p.commName, p.idx);
+    await new Promise(r => setTimeout(r, 300));
+  }
+
+  updateRetryAllBtn();
+}
+
+function updateRetryAllBtn() {
+  const remaining = state.allPosts.filter(p => p.status === 'error').length;
+  const btn = $('btn-retry-all');
+  if (remaining === 0) {
+    btn.style.display = 'none';
+    setBanner('✓ All posts scheduled successfully!', 'ok');
+  } else {
+    btn.disabled = false;
+    btn.textContent = `↺ Retry All Failed (${remaining})`;
+  }
 }
 
 function parseScheduleTime(dateStr) {
