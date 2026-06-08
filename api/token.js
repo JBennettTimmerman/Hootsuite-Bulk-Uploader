@@ -24,14 +24,17 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid request — grant_type and refresh_token required' });
     }
 
+    // Use Basic Auth (client_secret_basic method)
+    const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
     const tokenRes = await fetch('https://platform.hootsuite.com/oauth2/token', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${basicAuth}`
+      },
       body: new URLSearchParams({
         grant_type:    'refresh_token',
         refresh_token,
-        client_id:     clientId,
-        client_secret: clientSecret,
       }).toString()
     });
 
