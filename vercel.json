@@ -1,6 +1,9 @@
 {
   "rewrites": [
     { "source": "/api/hootsuite", "destination": "/api/hootsuite.js" },
+    { "source": "/api/auth", "destination": "/api/auth.js" },
+    { "source": "/api/callback", "destination": "/api/callback.js" },
+    { "source": "/api/token", "destination": "/api/token.js" },
     { "source": "/", "destination": "/index.html" }
   ]
 }
